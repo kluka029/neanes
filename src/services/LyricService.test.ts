@@ -12,6 +12,89 @@ import { QuantitativeNeume, Tie } from '../models/Neumes';
 import { LyricService } from './LyricService';
 import { SaveService } from './SaveService';
 
+describe('Space-delimited lyrics', () => {
+  function assignLyrics(text: string, notes: NoteElement[]) {
+    new LyricService().assignLyrics(
+      text,
+      notes,
+      false,
+      false,
+      () => {},
+      (note, values) => Object.assign(note, values),
+      () => {},
+      'space-delimited',
+    );
+  }
+
+  it('assigns each space-delimited syllable literally', () => {
+    const notes = [new NoteElement(), new NoteElement(), new NoteElement()];
+
+    assignLyrics('μην-ην  τα', notes);
+
+    expect(notes.map((note) => note.lyrics)).toEqual(['μην-ην', 'τα', '']);
+  });
+
+  it('keeps the hyphen melisma after a Greek vowel', () => {
+    const notes = [new NoteElement(), new NoteElement()];
+
+    assignLyrics('ε- τα', notes);
+
+    expect(notes.map((note) => note.lyrics)).toEqual(['ε', 'τα']);
+    expect(notes[0].isMelisma).toBe(true);
+    expect(notes[0].isMelismaStart).toBe(true);
+    expect(notes[0].isHyphen).toBe(true);
+  });
+
+  function state(notes: NoteElement[]) {
+    return notes.map(
+      (x) =>
+        `${x.lyrics}|${x.isMelisma ? 'M' : ''}${x.isMelismaStart ? 'S' : ''}${x.isHyphen ? 'H' : ''}`,
+    );
+  }
+
+  it.each([
+    ['ε- τα', 2, 'ε- τα', ['ε|MSH', 'τα|']],
+    ['ε- - τα', 3, 'ε- - τα', ['ε|MSH', '|MH', 'τα|']],
+    ['ε--- τα', 4, 'ε- - - τα', ['ε|MSH', '|MH', '|MH', 'τα|']],
+    ['θη___ τω', 4, 'θη_ _ _ τω', ['θη|MS', '|M', '|M', 'τω|']],
+    ['ε_ _ τα', 3, 'ε_ _ τα', ['ε|MS', '|M', 'τα|']],
+    ['μην-ην τα', 2, 'μην-ην τα', ['μην-ην|', 'τα|']],
+  ])(
+    'round-trips %s through extract and reassign',
+    (text, count, extracted, expected) => {
+      const notes = Array.from({ length: count }, () => new NoteElement());
+
+      assignLyrics(text, notes);
+      expect(state(notes)).toEqual(expected);
+
+      const extractedText = new LyricService().extractLyrics(
+        notes,
+        false,
+        'space-delimited',
+      );
+      expect(extractedText).toBe(extracted);
+
+      assignLyrics(extractedText, notes);
+      expect(state(notes)).toEqual(expected);
+    },
+  );
+
+  it('does not emit tokens for melisma-only notes', () => {
+    const notes = [new NoteElement(), new NoteElement(), new NoteElement()];
+    notes[1].acceptsLyrics = AcceptsLyricsOption.MelismaOnly;
+
+    assignLyrics('ε- τα', notes);
+    const extractedText = new LyricService().extractLyrics(
+      notes,
+      false,
+      'space-delimited',
+    );
+
+    expect(extractedText).toBe('ε- τα');
+    expect(state(notes)).toEqual(['ε|MSH', '|MH', 'τα|']);
+  });
+});
+
 describe('LyricService (English)', () => {
   it('should extract single word', () => {
     const lyricService = new LyricService();

@@ -935,6 +935,7 @@ export class LayoutService {
               noteElement,
               pageSetup,
               phase1GreekMelismaIsActive,
+              nextNoteElement,
             )
           ) {
             const leadingLyricHyphenWidth = this.getTextWidthFromCache(
@@ -3413,6 +3414,7 @@ export class LayoutService {
     noteElement: NoteElement,
     pageSetup: PageSetup,
     greekMelismaIsActive: boolean = false,
+    nextElement: ScoreElement | null = null,
   ): boolean {
     if (!noteElement.isHyphen) {
       return false;
@@ -3423,7 +3425,10 @@ export class LayoutService {
     }
 
     if (noteElement.isMelismaStart) {
-      return !MelismaHelperGreek.isGreek(noteElement.lyrics);
+      return !LayoutService.isGreekRepetitionMelismaStart(
+        noteElement,
+        nextElement,
+      );
     }
 
     if (noteElement.isMelisma && greekMelismaIsActive) {
@@ -3433,6 +3438,18 @@ export class LayoutService {
     return (
       !MelismaHelperGreek.isGreek(noteElement.lyrics) &&
       !MelismaHelperGreek.isGreek(noteElement.melismaText)
+    );
+  }
+
+  // A Greek hyphen directly followed by a new syllable has no continuation
+  // notes to repeat the vowel on, so it is drawn as an ordinary hyphen.
+  private static isGreekRepetitionMelismaStart(
+    noteElement: NoteElement,
+    nextElement: ScoreElement | null,
+  ) {
+    return (
+      MelismaHelperGreek.isGreek(noteElement.lyrics) &&
+      (!noteElement.isHyphen || this.isPartOfSameMelisma(nextElement))
     );
   }
 
@@ -5890,11 +5907,16 @@ export class LayoutService {
             index === indexOfFirstNote &&
             element.isMelisma &&
             !element.isMelismaStart;
+          const nextElementForHyphen =
+            index === line.elements.length - 1
+              ? firstElementOnNextLine
+              : line.elements[index + 1];
           const mayShowLeadingLyricHyphen =
             LayoutService.mayShowLeadingLyricHyphen(
               element,
               pageSetup,
               phase2GreekMelismaIsActive,
+              nextElementForHyphen,
             );
 
           // First, clear melisma fields, since
@@ -5926,7 +5948,10 @@ export class LayoutService {
 
           if (
             !pageSetup.disableGreekMelismata &&
-            MelismaHelperGreek.isGreek(element.lyrics)
+            LayoutService.isGreekRepetitionMelismaStart(
+              element,
+              nextElementForHyphen,
+            )
           ) {
             continue;
           }

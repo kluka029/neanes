@@ -6084,6 +6084,7 @@ function assignLyrics(workspace: Workspace = selectedWorkspace.value) {
         }),
       );
     },
+    'space-delimited',
   );
 
   if (updateCommands.length === 0) {
@@ -6106,6 +6107,7 @@ function extractStaffLyrics(workspace: Workspace) {
   workspace.score.staff.lyrics.text = lyricService.extractLyrics(
     workspace.score.staff.elements,
     workspace.score.pageSetup.disableGreekMelismata,
+    'space-delimited',
   );
 }
 

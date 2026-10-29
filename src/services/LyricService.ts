@@ -41,7 +41,12 @@ export class LyricService {
   extractLyrics(
     elements: ScoreElement[],
     disableGreekMelismata: boolean,
+    mode: 'legacy' | 'space-delimited' = 'legacy',
   ): string {
+    if (mode === 'space-delimited') {
+      return this.extractSpaceDelimitedLyrics(elements);
+    }
+
     let lyrics = '';
 
     // Set to true if we need to add a space before the next character
@@ -88,7 +93,11 @@ export class LyricService {
         // and appending the necessary underscores.
         // E.g. merge τω + ων = των__
         if (mergeVowels != null && !note.isMelisma) {
-          lyrics += note.lyrics.replace(mergeVowels, '') + mergeUnderscores;
+          if (note.lyrics.includes(mergeVowels)) {
+            lyrics += note.lyrics.replace(mergeVowels, '') + mergeUnderscores;
+          } else {
+            lyrics += `-${note.lyrics}`;
+          }
 
           mergeVowels = null;
           mergeUnderscores = '';
@@ -232,6 +241,48 @@ export class LyricService {
     return lyrics.trimEnd();
   }
 
+  // Inverse of assignLyrics in space-delimited mode: emits exactly one token
+  // per note that consumes a token, so that the text round-trips.
+  private extractSpaceDelimitedLyrics(elements: ScoreElement[]): string {
+    const tokens: string[] = [];
+    let previousNote: NoteElement | null = null;
+
+    for (const element of elements) {
+      if (element.elementType === ElementType.DropCap) {
+        tokens.push((element as DropCapElement).content);
+        previousNote = null;
+        continue;
+      }
+
+      if (element.elementType !== ElementType.Note) {
+        continue;
+      }
+
+      const note = element as NoteElement;
+      const acceptsLyrics = this.getEffectiveAcceptsLyrics(note, previousNote);
+      previousNote = note;
+
+      if (acceptsLyrics !== AcceptsLyricsOption.Yes) {
+        continue;
+      }
+
+      if (note.isMelisma && !note.isMelismaStart) {
+        tokens.push(note.isHyphen ? '-' : '_');
+      } else if (note.lyrics.trim() === '') {
+        tokens.push('_');
+      } else if (note.isMelismaStart) {
+        const marker = note.isHyphen ? '-' : '_';
+        tokens.push(
+          note.lyrics.endsWith(marker) ? note.lyrics : note.lyrics + marker,
+        );
+      } else {
+        tokens.push(note.lyrics);
+      }
+    }
+
+    return tokens.join(' ');
+  }
+
   /**
    * Assigns lyrics to score elements. This method does not directly alter the elements. Instead, the caller should provide callbacks to handle the updates.
    * @param lyrics The lyrics
@@ -249,8 +300,13 @@ export class LyricService {
     setLyrics: UpdateNoteLyricsCallback,
     updateNote: UpdateNoteCallback,
     updateDropCap: UpdateDropCapCallback,
+    mode: 'legacy' | 'space-delimited' = 'legacy',
   ) {
-    const tokenizer = new LyricTokenizer(lyrics);
+    const literalSpaceDelimitedSyllables = mode === 'space-delimited';
+    const tokenizer = new LyricTokenizer(
+      lyrics,
+      literalSpaceDelimitedSyllables,
+    );
 
     let previousToken = '';
     let previousNote: NoteElement | null = null;
@@ -301,38 +357,27 @@ export class LyricService {
           token = '_';
         }
 
-        const nextNote = this.findNextNote(filteredElements, i);
-
-        // (Greek) Check whether this is the last note in a melisma.
-        // If so, the final text of the syllable may be different
-        // than the melismatic text. For example τω ω ω ων.
-
-        // If the next note accepts syllables, then it is not a melisma
-        if (
-          melismaSyllables != null &&
-          (nextNote == null ||
-            this.getEffectiveAcceptsLyrics(nextNote, note) ===
-              AcceptsLyricsOption.Yes)
-        ) {
-          // If the final syllable text is different than the middle,
-          // then use the final text.
-          if (melismaSyllables.final !== melismaSyllables.middle) {
-            token = melismaSyllables.final;
+        if (!literalSpaceDelimitedSyllables) {
+          const nextNote = this.findNextNote(filteredElements, i);
+          if (
+            melismaSyllables != null &&
+            (nextNote == null ||
+              this.getEffectiveAcceptsLyrics(nextNote, note) ===
+                AcceptsLyricsOption.Yes)
+          ) {
+            if (melismaSyllables.final !== melismaSyllables.middle) {
+              token = melismaSyllables.final;
+            }
+            melismaSyllables = null;
           }
-
-          // Clear the syllables since we are no longer in a melisma.
-          melismaSyllables = null;
         }
       } else if (acceptsLyrics === AcceptsLyricsOption.Yes) {
         // The only other options is "Yes". So grab the next token
         // and assign it to the note.
         token = tokenizer.getNextToken();
 
-        // (Greek) In Greek mode, lyrics only use underscores, but the lyrics assigned
-        // to a note must sometimes be converted to a hyphen. This helps us distinguish between
-        // των and τω ων. We detect this by checking whether the syllable ends in a constant,
-        // in which case the middle syllable text will not match the final syllable text.
         if (
+          !literalSpaceDelimitedSyllables &&
           melismaSyllables != null &&
           token === '_' &&
           melismaSyllables.middle !== melismaSyllables.final
@@ -355,61 +400,50 @@ export class LyricService {
             nextNote != null
               ? runningElaphronNeumes.includes(nextNote.quantitativeNeume)
               : false;
-          const nextNoteAcceptsLyrics =
-            nextNote == null
-              ? AcceptsLyricsOption.No
-              : this.getEffectiveAcceptsLyrics(nextNote, note);
-          const afterPair = this.findNextNote(filteredElements, i + 1);
-          const sharedGreekPair =
-            !disableGreekMelismata &&
-            !rtl &&
-            MelismaHelperGreek.isGreek(token) &&
-            !token.endsWith('-') &&
-            note.quantitativeNeume === QuantitativeNeume.Apostrophos &&
-            !note.lineBreak &&
-            !note.pageBreak &&
-            followingElements.get(note) === nextNote &&
-            nextNote?.quantitativeNeume === QuantitativeNeume.Hyporoe &&
-            (afterPair == null ||
-              this.getEffectiveAcceptsLyrics(afterPair, nextNote) !==
-                AcceptsLyricsOption.MelismaOnly) &&
-            (nextNoteAcceptsLyrics === AcceptsLyricsOption.MelismaOnly
-              ? tokenizer.peekNextToken() !== '_'
-              : nextNoteAcceptsLyrics === AcceptsLyricsOption.Yes &&
-                token.endsWith('_') &&
-                tokenizer.peekNextToken() === '_' &&
-                tokenizer.peekNextToken(2) !== '_');
+          if (!literalSpaceDelimitedSyllables) {
+            const nextNoteAcceptsLyrics =
+              nextNote == null
+                ? AcceptsLyricsOption.No
+                : this.getEffectiveAcceptsLyrics(nextNote, note);
+            const afterPair = this.findNextNote(filteredElements, i + 1);
+            const sharedGreekPair =
+              !disableGreekMelismata &&
+              !rtl &&
+              MelismaHelperGreek.isGreek(token) &&
+              !token.endsWith('-') &&
+              note.quantitativeNeume === QuantitativeNeume.Apostrophos &&
+              !note.lineBreak &&
+              !note.pageBreak &&
+              followingElements.get(note) === nextNote &&
+              nextNote?.quantitativeNeume === QuantitativeNeume.Hyporoe &&
+              (afterPair == null ||
+                this.getEffectiveAcceptsLyrics(afterPair, nextNote) !==
+                  AcceptsLyricsOption.MelismaOnly) &&
+              (nextNoteAcceptsLyrics === AcceptsLyricsOption.MelismaOnly
+                ? tokenizer.peekNextToken() !== '_'
+                : nextNoteAcceptsLyrics === AcceptsLyricsOption.Yes &&
+                  token.endsWith('_') &&
+                  tokenizer.peekNextToken() === '_' &&
+                  tokenizer.peekNextToken(2) !== '_');
 
-          // Finally, we check the next note to handle some special cases.
-          // (Greek) Calculate melisma syllables.
-          // If the lyrics are Greek and the next note is a melisma,
-          // then calculate the melismatic syllables.
-          if (sharedGreekPair) {
-            // Keep the complete syllable on the shared two-neume span rather
-            // than moving its consonant ending onto the hyporoe.
-            token = token.replace(/_$/, '') + '_';
-            melismaSyllables = null;
-          } else if (
-            !disableGreekMelismata &&
-            (nextNoteIsMelisma || token.endsWith('_')) &&
-            MelismaHelperGreek.isGreek(token)
-          ) {
-            melismaSyllables = MelismaHelperGreek.getMelismaSyllable(
-              token.replace('_', ''),
-            );
-            // By convention, we distinguish between των and τω ων by
-            // setting note lyrics to either a hyphen or underscore, respectively.
-            if (melismaSyllables.middle === melismaSyllables.final) {
-              token = melismaSyllables.initial + '_';
-            } else {
-              token = melismaSyllables.initial + '-';
+            if (sharedGreekPair) {
+              token = token.replace(/_$/, '') + '_';
+              melismaSyllables = null;
+            } else if (
+              !disableGreekMelismata &&
+              (nextNoteIsMelisma || token.endsWith('_')) &&
+              MelismaHelperGreek.isGreek(token)
+            ) {
+              melismaSyllables = MelismaHelperGreek.getMelismaSyllable(
+                token.replace('_', ''),
+              );
+              token =
+                melismaSyllables.middle === melismaSyllables.final
+                  ? melismaSyllables.initial + '_'
+                  : melismaSyllables.initial + '-';
+            } else if (token !== '_' && token !== '-') {
+              melismaSyllables = null;
             }
-          } else if (token !== '_' && token !== '-') {
-            // If the token is a single underscore, then MelismaHelperGreek.isGreek(token)
-            // will be false, but we may still be in a melisma.
-            // But if the token is not a single underscore, then we are not in a melisma.
-            // So we clear the melisma.
-            melismaSyllables = null;
           }
 
           // If the next note only takes a melisma, then ensure that this token
@@ -422,10 +456,8 @@ export class LyricService {
             token += '_';
           }
 
-          // (Greek) If we are in a melisma and the next note is not a melisma,
-          // then we should set the present note to the final melisma text if it differs
-          // from the middle text. I.e. τω ω ω ων.
           if (
+            !literalSpaceDelimitedSyllables &&
             melismaSyllables != null &&
             token === '-' &&
             melismaSyllables.final !== melismaSyllables.middle &&
@@ -700,9 +732,11 @@ export class LyricService {
 export class LyricTokenizer {
   private lyrics: string;
   private index: number = 0;
+  private literalSpaceDelimitedSyllables: boolean;
 
-  constructor(lyrics: string) {
+  constructor(lyrics: string, literalSpaceDelimitedSyllables = false) {
     this.lyrics = lyrics;
+    this.literalSpaceDelimitedSyllables = literalSpaceDelimitedSyllables;
   }
 
   /**
@@ -710,32 +744,56 @@ export class LyricTokenizer {
    * @returns The next token
    */
   getNextToken() {
-    const breakingCharacters = ['-', '_'];
+    if (!this.literalSpaceDelimitedSyllables) {
+      const breakingCharacters = ['-', '_'];
+      let token = '';
 
-    let token = '';
-
-    let foundCompleteToken = false;
-
-    while (!foundCompleteToken && this.index < this.lyrics.length) {
-      const c = this.lyrics[this.index];
-
-      if (c.trim() !== '') {
-        token += c;
+      while (this.index < this.lyrics.length) {
+        const c = this.lyrics[this.index];
+        if (c.trim() !== '') {
+          token += c;
+        }
+        if (c.trim() === '' && token.length > 0) {
+          this.index++;
+          break;
+        }
+        if (breakingCharacters.includes(c)) {
+          this.index++;
+          break;
+        }
+        this.index++;
       }
 
-      // Eat spaces until next non-space character
-      if (c.trim() === '' && token.length > 0) {
-        foundCompleteToken = true;
-      }
+      return token.trim();
+    }
 
-      if (breakingCharacters.includes(c)) {
-        foundCompleteToken = true;
-      }
-
+    while (
+      this.index < this.lyrics.length &&
+      this.lyrics[this.index].trim() === ''
+    ) {
       this.index++;
     }
 
-    return token.trim();
+    const start = this.index;
+    while (
+      this.index < this.lyrics.length &&
+      this.lyrics[this.index].trim() !== ''
+    ) {
+      this.index++;
+    }
+
+    const token = this.lyrics.slice(start, this.index);
+
+    // A run of trailing markers (e.g. "θη___") means the melisma continues
+    // across the following notes, one note per extra marker.
+    const match = token.match(/([_-])\1+$/);
+    if (match != null) {
+      const extra = match.index! > 0 ? match[0].length - 1 : token.length - 1;
+      this.index -= extra;
+      return token.slice(0, token.length - extra);
+    }
+
+    return token;
   }
 
   /**

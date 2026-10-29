@@ -550,6 +550,41 @@ describe('LayoutService.mayShowLeadingLyricHyphen', () => {
     );
   });
 
+  it('allows a Greek start hyphen followed directly by a new syllable', () => {
+    const pageSetup = getMockPageSetup();
+
+    const note = new NoteElement();
+    note.isMelisma = true;
+    note.isMelismaStart = true;
+    note.isHyphen = true;
+    note.lyrics = 'δε';
+
+    const next = new NoteElement();
+    next.lyrics = 'ξα';
+
+    expect(
+      LayoutService.mayShowLeadingLyricHyphen(note, pageSetup, false, next),
+    ).toBe(true);
+  });
+
+  it('suppresses a Greek start hyphen followed by a continuation note', () => {
+    const pageSetup = getMockPageSetup();
+
+    const note = new NoteElement();
+    note.isMelisma = true;
+    note.isMelismaStart = true;
+    note.isHyphen = true;
+    note.lyrics = 'δε';
+
+    const next = new NoteElement();
+    next.isMelisma = true;
+    next.isHyphen = true;
+
+    expect(
+      LayoutService.mayShowLeadingLyricHyphen(note, pageSetup, false, next),
+    ).toBe(false);
+  });
+
   it('allows non-Greek hyphens', () => {
     const pageSetup = getMockPageSetup();
 
