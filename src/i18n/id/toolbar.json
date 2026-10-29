@@ -62,7 +62,13 @@
     "column": "Kolom {{ columnNumber }} dari {{ columnCount }}"
   },
   "dropCap": {
-    "lineSpan": "Baris untuk Turun"
+    "lineSpan": "Baris untuk Turun",
+    "image": "Gambar",
+    "chooseImage": "Pilih Gambar...",
+    "removeImage": "Hapus Gambar",
+    "converting": "Mengonversi...",
+    "letter": "Huruf",
+    "imageError": "Gambar tidak dapat dimuat."
   },
   "properties": {
     "noProperties": "Tidak ada properti",

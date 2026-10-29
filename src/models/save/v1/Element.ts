@@ -344,6 +344,9 @@ export class DropCapElement extends ScoreElement {
   public fontVariantAlternates: string | undefined = undefined;
   public customWidth: number | undefined = undefined;
   public lineSpan: number = 1;
+  public imageData: string | undefined = undefined;
+  public imageWidth: number | undefined = undefined;
+  public imageHeight: number | undefined = undefined;
 
   // Deprecated load-only compatibility for legacy drop-cap font-style fields.
   public fontStyle: string | undefined = undefined;

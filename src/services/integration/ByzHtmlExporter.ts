@@ -1134,6 +1134,20 @@ export class ByzHtmlExporter {
     let styleAttribute = '';
     const overrides = element.getParagraphStyleOverrides();
 
+    if (element.imageData != null) {
+      const height = Unit.toPt(
+        resolveParagraphStyle(
+          paragraphStyles,
+          element.paragraphStyleId,
+          overrides,
+        ).fontSize,
+      );
+
+      return `<${this.config.tagDropCap}><img src="${element.imageData}" alt="${element.content}" style="height: ${height}pt; width: ${height * element.imageAspectRatio}pt" /></${
+        this.config.tagDropCap
+      }\n${this.getIndentationString(indentation)}>`;
+    }
+
     if (
       hasParagraphStyleOverrides(overrides) ||
       element.paragraphStyleId !== BUILT_IN_PARAGRAPH_STYLE_IDS.DropCap

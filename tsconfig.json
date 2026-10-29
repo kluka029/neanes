@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "sourceMap": true,
-    "types": ["vite/client", "web-bluetooth"],
+    "types": ["vite/client", "web-bluetooth", "emscripten"],
     "paths": {
       "@/*": ["./src/*"]
     },

@@ -1463,6 +1463,11 @@ export class DropCapElement extends ScoreElement {
   public fontVariantAlternates: string | null = null;
   public customWidth: number | null = null;
   public lineSpan: number = 1;
+  // A PNG data URL drawn in place of the letter. The letter is kept because
+  // it still prefixes the first lyric.
+  public imageData: string | null = null;
+  public imageWidth: number = 0;
+  public imageHeight: number = 0;
 
   // Values computed by the layout service
   public computedFontFamily: string = '';
@@ -1493,9 +1498,14 @@ export class DropCapElement extends ScoreElement {
   public computedFontVariantNumericPrevious: string = 'normal';
   public computedFontVariantLigaturesPrevious: string = 'normal';
   public computedFontVariantAlternatesPrevious: string = 'normal';
+  public imageDataPrevious: string | null = null;
 
   public get computedFont() {
     return this.getComputedFont(this.computedFontSize);
+  }
+
+  public get imageAspectRatio() {
+    return this.imageWidth / this.imageHeight;
   }
 
   // The same font at an arbitrary size, so that the rendered (zoomed) font can
@@ -1529,6 +1539,9 @@ export class DropCapElement extends ScoreElement {
       fontVariantAlternates: this.fontVariantAlternates,
       customWidth: this.customWidth,
       lineSpan: this.lineSpan,
+      imageData: this.imageData,
+      imageWidth: this.imageWidth,
+      imageHeight: this.imageHeight,
     } as Partial<DropCapElement>;
   }
 

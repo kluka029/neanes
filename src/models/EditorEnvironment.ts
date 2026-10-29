@@ -9,6 +9,7 @@ export const DEFAULT_PANE_ACCORDION_STATE: Partial<
   properties: [
     'style',
     'size',
+    'image',
     'positioning',
     'neume',
     'tempo',

@@ -62,7 +62,13 @@
     "column": "Столбец {{ columnNumber }} из {{ columnCount }}"
   },
   "dropCap": {
-    "lineSpan": "Количество строк для буквицы"
+    "lineSpan": "Количество строк для буквицы",
+    "image": "Изображение",
+    "chooseImage": "Выбрать изображение...",
+    "removeImage": "Удалить изображение",
+    "converting": "Преобразование...",
+    "letter": "Буква",
+    "imageError": "Не удалось загрузить изображение."
   },
   "properties": {
     "noProperties": "Нет свойств",

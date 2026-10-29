@@ -62,7 +62,13 @@
     "column": "Στήλη {{ columnNumber }} από {{ columnCount }}"
   },
   "dropCap": {
-    "lineSpan": "Έκταση Γραμμών"
+    "lineSpan": "Έκταση Γραμμών",
+    "image": "Εικόνα",
+    "chooseImage": "Επιλογή εικόνας...",
+    "removeImage": "Αφαίρεση εικόνας",
+    "converting": "Μετατροπή...",
+    "letter": "Γράμμα",
+    "imageError": "Δεν ήταν δυνατή η φόρτωση της εικόνας."
   },
   "properties": {
     "noProperties": "Δεν υπάρχουν ιδιότητες",

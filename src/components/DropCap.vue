@@ -2,14 +2,25 @@
   <div
     ref="container"
     class="drop-cap-container"
+    :class="{ 'has-image': element.imageData != null }"
     dir="auto"
     @click="$emit('select-single')"
   >
     <span class="handle"></span>
 
+    <img
+      v-if="element.imageData != null"
+      class="drop-cap-image"
+      :src="element.imageData"
+      :alt="element.content"
+      :style="imageStyle"
+      draggable="false"
+    />
+
     <ContentEditable
       ref="text"
       class="drop-cap"
+      :class="{ 'drop-cap-hidden-text': element.imageData != null }"
       :style="style"
       :content="element.content"
       :editable="editable"
@@ -52,8 +63,9 @@ const htmlElement = computed(() => container.value!);
 const textElement = computed(() => text.value!);
 
 const style = computed(() => {
+  const hasImage = props.element.imageData != null;
   const style = {
-    color: props.element.computedColor,
+    color: hasImage ? 'transparent' : props.element.computedColor,
     fontFamily: getFontFamilyWithFallback(props.element.computedFontFamily),
     fontSize: withZoom(props.element.computedFontSize),
     fontWeight: props.element.computedFontWeight,
@@ -63,12 +75,24 @@ const style = computed(() => {
     fontVariantLigatures: props.element.computedFontVariantLigatures,
     fontVariantAlternates: props.element.computedFontVariantAlternates,
     lineHeight: `${props.element.computedLineHeight ?? 'normal'}`,
-    webkitTextStrokeWidth: withZoom(props.element.computedStrokeWidth),
+    webkitTextStrokeWidth: hasImage
+      ? 0
+      : withZoom(props.element.computedStrokeWidth),
     webkitTextStrokeColor: props.element.computedStrokeColor,
   } as StyleValue;
 
   return style;
 });
+
+const imageStyle = computed(
+  () =>
+    ({
+      height: withZoom(props.element.computedFontSize),
+      width: withZoom(
+        props.element.computedFontSize * props.element.imageAspectRatio,
+      ),
+    }) as StyleValue,
+);
 
 function focus() {
   if (props.editable) {
@@ -100,6 +124,24 @@ defineExpose({
 <style scoped>
 .drop-cap:focus {
   outline: none;
+}
+
+.drop-cap-container.has-image {
+  position: relative;
+}
+
+.drop-cap-image {
+  display: block;
+  max-width: none;
+}
+
+/* The letter stays focusable over the image so that keyboard navigation and
+   editing keep working, but it is not drawn. */
+.drop-cap-hidden-text {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  caret-color: transparent;
 }
 
 .drop-cap-container .handle {

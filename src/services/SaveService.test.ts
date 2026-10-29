@@ -1286,6 +1286,32 @@ describe('SaveService font styles', () => {
     expect(loaded.fontVariantAlternates).toBe('historical-forms');
   });
 
+  it('saves and loads drop-cap images', () => {
+    const element = new DropCapElement();
+    element.imageData = 'data:image/png;base64,AAAA';
+    element.imageWidth = 833;
+    element.imageHeight = 1000;
+
+    const saved = new DropCapElement_v1();
+    SaveService.SaveDropCap(saved, element);
+
+    const loaded = new DropCapElement();
+    SaveService.LoadDropCap_v1(loaded, saved, new PageSetup());
+
+    expect(loaded.imageData).toBe('data:image/png;base64,AAAA');
+    expect(loaded.imageWidth).toBe(833);
+    expect(loaded.imageHeight).toBe(1000);
+  });
+
+  it('omits image fields for text drop caps', () => {
+    const saved = new DropCapElement_v1();
+    SaveService.SaveDropCap(saved, new DropCapElement());
+
+    expect(saved.imageData).toBeUndefined();
+    expect(saved.imageWidth).toBeUndefined();
+    expect(saved.imageHeight).toBeUndefined();
+  });
+
   it('saves and loads per-note lyric font variants', () => {
     const element = new NoteElement();
     element.lyricsFontVariantCaps = 'small-caps';

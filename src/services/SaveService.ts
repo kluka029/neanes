@@ -1232,6 +1232,12 @@ export class SaveService {
     element.customWidth = e.customWidth ?? undefined;
     element.lineSpan = e.lineSpan;
 
+    if (e.imageData != null) {
+      element.imageData = e.imageData;
+      element.imageWidth = e.imageWidth;
+      element.imageHeight = e.imageHeight;
+    }
+
     element.color = e.color ?? undefined;
     element.fontFamily = e.fontFamily ?? undefined;
     element.fontSize = e.fontSize ?? undefined;
@@ -2135,6 +2141,11 @@ export class SaveService {
     element.content = e.content;
     element.customWidth = e.customWidth ?? null;
     element.lineSpan = e.lineSpan ?? pageSetup.dropCapDefaultLineSpan;
+    if (e.imageData != null) {
+      element.imageData = e.imageData;
+      element.imageWidth = e.imageWidth!;
+      element.imageHeight = e.imageHeight!;
+    }
     element.paragraphStyleId =
       e.paragraphStyleId ?? BUILT_IN_PARAGRAPH_STYLE_IDS.DropCap;
     element.fontFamily = e.fontFamily ?? null;

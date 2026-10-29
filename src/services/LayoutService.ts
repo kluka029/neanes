@@ -1488,6 +1488,9 @@ export class LayoutService {
 
           if (dropCapElement.customWidth != null) {
             elementWidthPx = dropCapElement.customWidth;
+          } else if (dropCapElement.imageData != null) {
+            elementWidthPx =
+              dropCapElement.computedFontSize * dropCapElement.imageAspectRatio;
           } else {
             elementWidthPx = TextMeasurementService.getTextWidth(
               dropCapElement.content,
@@ -3283,6 +3286,14 @@ export class LayoutService {
         dropCapElement.computedLineSpan - 1,
         neumeLineHeight,
       ) + lyricsBaseline;
+
+    // An image drop cap is as tall as its font size, with its bottom edge on
+    // the lyrics baseline.
+    if (dropCapElement.imageData != null) {
+      element.y -=
+        dropCapElement.computedFontSize - distanceFromTopToBottomOfLyrics;
+      return;
+    }
 
     const fontMetrics = TextMeasurementService.getCachedFontVerticalMetrics(
       dropCapElement.computedFont,
@@ -5513,6 +5524,7 @@ export class LayoutService {
         dropCap.computedFontVariantLigatures;
       dropCap.computedFontVariantAlternatesPrevious =
         dropCap.computedFontVariantAlternates;
+      dropCap.imageDataPrevious = dropCap.imageData;
     }
   }
 
@@ -5630,7 +5642,8 @@ export class LayoutService {
         dropCap.computedFontVariantLigaturesPrevious !==
           dropCap.computedFontVariantLigatures ||
         dropCap.computedFontVariantAlternatesPrevious !==
-          dropCap.computedFontVariantAlternates;
+          dropCap.computedFontVariantAlternates ||
+        dropCap.imageDataPrevious !== dropCap.imageData;
     }
   }
 

@@ -62,7 +62,13 @@
     "column": "Coloană {{ columnNumber }} din {{ columnCount }}"
   },
   "dropCap": {
-    "lineSpan": "Linii de coborâre"
+    "lineSpan": "Linii de coborâre",
+    "image": "Imagine",
+    "chooseImage": "Alege imaginea...",
+    "removeImage": "Elimină imaginea",
+    "converting": "Se convertește...",
+    "letter": "Literă",
+    "imageError": "Imaginea nu a putut fi încărcată."
   },
   "properties": {
     "noProperties": "Nicio proprietate",

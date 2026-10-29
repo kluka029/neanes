@@ -268,6 +268,57 @@
     </PaneSection>
 
     <PaneSection
+      value="image"
+      :title="$t(($) => $.toolbar.dropCap.image, { ns: 'toolbar' })"
+    >
+      <input
+        ref="imageFileInput"
+        type="file"
+        class="hidden"
+        accept=".eps,.epsf,.epsi,.ps,image/png,image/jpeg,image/gif,image/svg+xml,image/webp"
+        @change="onImageFileChosen"
+      />
+      <div class="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          :disabled="convertingImage"
+          @click="imageFileInput?.click()"
+        >
+          {{
+            convertingImage
+              ? $t(($) => $.toolbar.dropCap.converting, { ns: 'toolbar' })
+              : $t(($) => $.toolbar.dropCap.chooseImage, { ns: 'toolbar' })
+          }}
+        </Button>
+        <Button
+          v-if="element.imageData != null"
+          variant="outline"
+          size="sm"
+          :disabled="convertingImage"
+          @click="removeImage"
+        >
+          {{ $t(($) => $.toolbar.dropCap.removeImage, { ns: 'toolbar' }) }}
+        </Button>
+      </div>
+      <p v-if="imageError" class="text-destructive text-sm">
+        {{ $t(($) => $.toolbar.dropCap.imageError, { ns: 'toolbar' }) }}
+      </p>
+
+      <Field v-if="element.imageData != null" orientation="horizontal">
+        <FieldLabel for="properties-drop-cap-letter">{{
+          $t(($) => $.toolbar.dropCap.letter, { ns: 'toolbar' })
+        }}</FieldLabel>
+        <Input
+          id="properties-drop-cap-letter"
+          class="w-20"
+          :model-value="element.content"
+          @change="onLetterChanged"
+        />
+      </Field>
+    </PaneSection>
+
+    <PaneSection
       value="positioning"
       :title="$t(($) => $.toolbar.neume.positioning, { ns: 'toolbar' })"
     >
@@ -297,7 +348,7 @@
 <script setup lang="ts">
 import { PhTextB, PhTextItalic } from '@phosphor-icons/vue';
 import type { PropType } from 'vue';
-import { computed } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 
 import ColorPicker from '@/components/ColorPicker.vue';
 import FontCombobox from '@/components/FontCombobox.vue';
@@ -311,7 +362,9 @@ import FontVariantFields from '@/components/properties/FontVariantFields.vue';
 import ParagraphStyleClearButton from '@/components/properties/ParagraphStyleClearButton.vue';
 import ParagraphStyleField from '@/components/properties/ParagraphStyleField.vue';
 import StrokeColorPicker from '@/components/StrokeColorPicker.vue';
+import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useFontStyleControls } from '@/composables/useFontStyleControls';
 import { useResolvedParagraphStyle } from '@/composables/useResolvedParagraphStyle';
@@ -319,6 +372,8 @@ import type { DropCapElement } from '@/models/Element';
 import type { PageSetup } from '@/models/PageSetup';
 import type { ParagraphStyle } from '@/models/ParagraphStyle';
 import { resolveParagraphStyle } from '@/models/ParagraphStyle';
+import type { ConvertedImage } from '@/services/EpsConverter';
+import { convertEpsToPng, isEpsFile } from '@/services/EpsConverter';
 import { fontCatalog } from '@/services/FontCatalog';
 import type { FontVariantProperty } from '@/utils/fontVariants';
 import { composeExplicitFontVariant } from '@/utils/fontVariants';
@@ -438,5 +493,80 @@ function clearParagraphStyleFormatting() {
 
 function openParagraphStylesDialog() {
   emit('open-paragraph-styles-dialog', props.element.paragraphStyleId);
+}
+
+const imageFileInput = useTemplateRef<HTMLInputElement>('imageFileInput');
+const convertingImage = ref(false);
+const imageError = ref(false);
+
+function readImageFile(file: File) {
+  return new Promise<ConvertedImage>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error);
+    reader.onload = () => {
+      const data = reader.result as string;
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = () =>
+        resolve({
+          data,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        });
+      image.src = data;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function onImageFileChosen(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+
+  if (file == null) {
+    return;
+  }
+
+  convertingImage.value = true;
+  imageError.value = false;
+
+  try {
+    const image = isEpsFile(file.name)
+      ? await convertEpsToPng(new Uint8Array(await file.arrayBuffer()))
+      : await readImageFile(file);
+
+    if (image.width === 0 || image.height === 0) {
+      throw new Error('The image has no size.');
+    }
+
+    emit('update', {
+      imageData: image.data,
+      imageWidth: image.width,
+      imageHeight: image.height,
+    } as Partial<DropCapElement>);
+  } catch (error) {
+    console.error(error);
+    imageError.value = true;
+  } finally {
+    convertingImage.value = false;
+  }
+}
+
+function removeImage() {
+  imageError.value = false;
+  emit('update', {
+    imageData: null,
+    imageWidth: 0,
+    imageHeight: 0,
+  } as Partial<DropCapElement>);
+}
+
+function onLetterChanged(event: Event) {
+  const content = (event.target as HTMLInputElement).value.trim();
+
+  if (content !== '' && content !== props.element.content) {
+    emit('update', { content } as Partial<DropCapElement>);
+  }
 }
 </script>

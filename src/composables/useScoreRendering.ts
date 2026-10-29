@@ -214,6 +214,13 @@ export function useScoreRendering(score: Ref<Score>, zoom: Ref<number>) {
 
   function getDisplayedDropCapTop(element: DropCapElement) {
     const context = displayedLyricMetricsContext.value;
+
+    // An image has no font metrics of its own, so it only follows the
+    // displayed lyric baseline.
+    if (element.imageData != null) {
+      return withZoomOffset(element.y, context.defaultAscentShift);
+    }
+
     // The computed font carries the canonical size, and the zoom is fixed for
     // the whole context, so it identifies both measurements on its own.
     const font = element.computedFont;

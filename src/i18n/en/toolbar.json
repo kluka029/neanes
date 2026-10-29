@@ -62,7 +62,13 @@
     "column": "Column {{ columnNumber }} of {{ columnCount }}"
   },
   "dropCap": {
-    "lineSpan": "Lines to Drop"
+    "lineSpan": "Lines to Drop",
+    "image": "Image",
+    "chooseImage": "Choose Image...",
+    "removeImage": "Remove Image",
+    "converting": "Converting...",
+    "letter": "Letter",
+    "imageError": "The image could not be loaded."
   },
   "properties": {
     "noProperties": "No properties",
